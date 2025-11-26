@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Your Cart</title>
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/semantic-ui@2.5.0/dist/semantic.min.css" />
+</head>
+<body>
+<div class="ui container" style="margin-top: 30px;">
+
+  <h2 class="ui header">🛒 Your Cart</h2>
+  <a href="/" class="ui button">Back to Store</a>
+
+  <table class="ui celled table" style="margin-top: 20px;">
+    <thead>
+      <tr>
+        <th>Product</th>
+        <th>Description</th>
+        <th>Category</th>
+        <th>Price</th>
+        <th>Quantity</th>
+        <th>Subtotal</th>
+        <th>Remove</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in cart_items %}
+      <tr>
+        <td>{{ item.name }}</td>
+        <td>{{ item.description }}</td>
+        <td>{{ item.category }}</td>
+        <td>${{ "%.2f"|format(item.price) }}</td>
+        <td>{{ item.quantity }}</td>
+        <td>${{ "%.2f"|format(item.price * item.quantity) }}</td>
+        <td>
+          <a href="/remove_from_cart/{{ item.id }}" class="ui tiny red button">
+            Remove
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h3 class="ui header">Total: ${{ "%.2f"|format(total) }}</h3>
+
+  {% if cart_items %}
+  <a href="/checkout" class="ui green button">Proceed to Checkout</a>
+  {% endif %}
+
+</div>
+</body>
+</html>

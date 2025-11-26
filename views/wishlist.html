@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Wishlist</title>
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/semantic-ui@2.5.0/dist/semantic.min.css" />
+</head>
+<body>
+<div class="ui container" style="margin-top: 30px;">
+
+  <h2 class="ui header">❤️ Your Wishlist</h2>
+  <a href="/" class="ui button">Back to Store</a>
+
+  <div class="ui three stackable cards" style="margin-top: 20px;">
+    {% for p in wishlist_items %}
+    <div class="card">
+      {% if p.image_url %}
+      <div class="image">
+        <img src="{{ p.image_url }}" alt="{{ p.name }}">
+      </div>
+      {% endif %}
+      <div class="content">
+        <div class="header">{{ p.name }}</div>
+        {% if p.category %}
+        <div class="meta">{{ p.category }}</div>
+        {% endif %}
+        <div class="description">{{ p.description }}</div>
+      </div>
+      <div class="extra content">
+        <b>${{ "%.2f"|format(p.price) }}</b>
+        <a href="/add_to_cart/{{ p.id }}" class="ui right floated primary button">
+          Move to Cart
+        </a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+</body>
+</html>

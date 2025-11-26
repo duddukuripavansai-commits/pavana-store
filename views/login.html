@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Login</title>
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/semantic-ui@2.5.0/dist/semantic.min.css" />
+</head>
+<body>
+<div class="ui container" style="margin-top: 60px; max-width: 400px;">
+
+  <h2 class="ui header">Admin Login</h2>
+
+  {% if error %}
+  <div class="ui red message">{{ error }}</div>
+  {% endif %}
+
+  <form class="ui form" method="post" action="/admin/login">
+    <div class="field">
+      <label>Username</label>
+      <input type="text" name="username" required>
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" name="password" required>
+    </div>
+
+    <button class="ui primary button" type="submit">Login</button>
+    <a href="/" class="ui button">Back</a>
+  </form>
+</div>
+</body>
+</html>

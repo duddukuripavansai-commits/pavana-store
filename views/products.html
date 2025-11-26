@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin – Products</title>
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/semantic-ui@2.5.0/dist/semantic.min.css" />
+</head>
+<body>
+<div class="ui container" style="margin-top: 30px;">
+
+  <h2 class="ui header">Admin – Products</h2>
+  <a href="/admin/dashboard" class="ui button">Dashboard</a>
+  <a href="/admin/product/add" class="ui green button">Add Product</a>
+  <a href="/admin/logout" class="ui red button">Logout</a>
+
+  <table class="ui celled table" style="margin-top: 20px;">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Image</th>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Category</th>
+        <th>Price</th>
+        <th>Rating</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in products %}
+      <tr>
+        <td>{{ p.id }}</td>
+        <td>
+          {% if p.image_url %}
+            <img src="{{ p.image_url }}" style="max-width: 60px;">
+          {% endif %}
+        </td>
+        <td>{{ p.name }}</td>
+        <td>{{ p.description }}</td>
+        <td>{{ p.category }}</td>
+        <td>${{ "%.2f"|format(p.price) }}</td>
+        <td>
+          {% if p.rating %}
+            ⭐ {{ "%.1f"|format(p.rating) }}/5
+          {% else %}
+            -
+          {% endif %}
+        </td>
+        <td>
+          <a class="ui tiny blue button"
+             href="/admin/product/edit/{{ p.id }}">Edit</a>
+          <a class="ui tiny red button"
+             href="/admin/product/delete/{{ p.id }}"
+             onclick="return confirm('Delete this product?');">
+             Delete
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+</div>
+</body>
+</html>

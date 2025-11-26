@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Checkout</title>
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/semantic-ui@2.5.0/dist/semantic.min.css" />
+</head>
+<body>
+<div class="ui container" style="margin-top: 30px; max-width: 700px;">
+
+  <h2 class="ui header">Checkout</h2>
+  <a href="/cart" class="ui button">Back to Cart</a>
+
+  <div class="ui segment" style="margin-top: 20px;">
+    <h4>Order Summary</h4>
+    <ul>
+      {% for item in cart_items %}
+      <li>{{ item.name }} x {{ item.quantity }} – ${{ "%.2f"|format(item.price * item.quantity) }}</li>
+      {% endfor %}
+    </ul>
+    <p><b>Total: ${{ "%.2f"|format(total) }}</b></p>
+  </div>
+
+  <form class="ui form" method="post" action="/checkout" style="margin-top: 20px;">
+    <div class="field">
+      <label>Full Name</label>
+      <input type="text" name="name" required>
+    </div>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" name="email" required>
+    </div>
+    <div class="field">
+      <label>Address</label>
+      <textarea name="address" required></textarea>
+    </div>
+
+    <button class="ui green button" type="submit">Place Order</button>
+  </form>
+
+</div>
+</body>
+</html>

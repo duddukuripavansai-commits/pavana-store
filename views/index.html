@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Pavana Store</title>
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/semantic-ui@2.5.0/dist/semantic.min.css" />
+</head>
+<body>
+<div class="ui container" style="margin-top: 30px;">
+
+  <!-- NAVBAR -->
+  <div class="ui menu">
+    <a href="/" class="header item">🛒 Pavana Store</a>
+    <a href="/cart" class="item">Cart</a>
+    <a href="/wishlist" class="item">Wishlist</a>
+    <div class="right menu">
+      <a href="/admin/dashboard" class="item">Admin Dashboard</a>
+      <a href="/admin/login" class="item">Admin Login</a>
+    </div>
+  </div>
+
+  <!-- SEARCH + CATEGORY FILTER -->
+  <form class="ui form" method="get" action="/" style="margin-top: 20px;">
+    <div class="fields">
+      <div class="eight wide field">
+        <input type="text" name="q" placeholder="Search products..." value="{{ q }}">
+      </div>
+
+      <div class="four wide field">
+        <select class="ui dropdown" name="category">
+          <option value="">All Categories</option>
+          {% for cat in categories %}
+          <option value="{{ cat.category }}"
+            {% if selected_category == cat.category %}selected{% endif %}>
+            {{ cat.category }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="four wide field">
+        <button class="ui primary button" type="submit">Search</button>
+      </div>
+    </div>
+  </form>
+
+  <!-- PRODUCTS -->
+  <div class="ui three stackable cards" style="margin-top: 20px;">
+    {% for p in products %}
+    <div class="card">
+      {% if p.image_url %}
+      <div class="image">
+        <img src="{{ p.image_url }}" alt="{{ p.name }}">
+      </div>
+      {% endif %}
+      <div class="content">
+        <div class="header">{{ p.name }}</div>
+        {% if p.category %}
+        <div class="meta">{{ p.category }}</div>
+        {% endif %}
+        <div class="description">{{ p.description }}</div>
+      </div>
+      <div class="extra content">
+        <div>
+          <b>${{ "%.2f"|format(p.price) }}</b>
+        </div>
+        <div style="margin-top: 5px;">
+          {% if p.rating %}
+            ⭐ {{ "%.1f"|format(p.rating) }}/5
+          {% else %}
+            <span style="color: gray;">No rating yet</span>
+          {% endif %}
+        </div>
+        <div style="margin-top: 10px;">
+          <a href="/add_to_cart/{{ p.id }}" class="ui tiny primary button">
+            Add to Cart
+          </a>
+          <a href="/add_to_wishlist/{{ p.id }}" class="ui tiny button">
+            ❤️ Wishlist
+          </a>
+        </div>
+        <form action="/rate/{{ p.id }}" method="post" style="margin-top: 10px;">
+          <div class="ui mini input">
+            <input type="number" name="rating" min="1" max="5" step="0.5" placeholder="Rate 1-5">
+          </div>
+          <button class="ui mini yellow button" type="submit">Rate</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+</body>
+</html>
