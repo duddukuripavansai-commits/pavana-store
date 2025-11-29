@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>My Orders - Pavana Store</title>
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/semantic-ui@2.5.0/dist/semantic.min.css" />
+</head>
+<body>
+<div class="ui container" style="margin-top: 40px;">
+
+  <!-- NAVBAR (same style as home) -->
+  <div class="ui secondary menu">
+    <a href="/" class="header item">
+      🛒 <strong>Pavana Store</strong>
+    </a>
+
+    <a href="/cart" class="item">Cart</a>
+    <a href="/wishlist" class="item">Wishlist</a>
+
+    <div class="right menu">
+      {% if session.get("user_email") %}
+        <a href="/my_orders" class="active item">My Orders</a>
+        <div class="item">
+          <span style="font-size: 0.9rem; color:#777;">
+            Hi, <b>{{ session.get("user_name", "Customer") }}</b>
+          </span>
+        </div>
+        <a href="/logout" class="item">Logout</a>
+        <a href="/admin/dashboard" class="item">Admin Dashboard</a>
+      {% else %}
+        <a href="/login" class="item">Login</a>
+        <a href="/signup" class="item">Sign Up</a>
+        <a href="/admin/dashboard" class="item">Admin Dashboard</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- PAGE HEADER -->
+  <h2 class="ui header">
+    <i class="clipboard list icon"></i>
+    <div class="content">
+      My Orders
+      <div class="sub header">
+        Orders placed with your account ({{ session.get("user_email") }})
+      </div>
+    </div>
+  </h2>
+
+  {% if orders and orders|length > 0 %}
+    <table class="ui celled table">
+      <thead>
+        <tr>
+          <th>Order ID</th>
+          <th>Date</th>
+          <th>Customer Name</th>
+          <th>Total Amount ($)</th>
+          <th>Address</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in orders %}
+        <tr>
+          <td>#{{ o.id }}</td>
+          <td>{{ o.created_at }}</td>
+          <td>{{ o.customer_name }}</td>
+          <td>{{ "%.2f"|format(o.total_amount) }}</td>
+          <td>{{ o.address }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="ui placeholder segment" style="margin-top: 20px;">
+      <div class="ui icon header">
+        <i class="shopping bag icon"></i>
+        You have no orders yet.
+      </div>
+      <a href="/" class="ui primary button">Start Shopping</a>
+    </div>
+  {% endif %}
+
+</div>
+</body>
+</html>

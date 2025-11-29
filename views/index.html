@@ -2,53 +2,142 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>Pavana Store</title>
+  <title>Pavana Store – Smart Online Shopping</title>
   <link rel="stylesheet"
         href="https://cdn.jsdelivr.net/npm/semantic-ui@2.5.0/dist/semantic.min.css" />
+  <style>
+    body {
+      background: #f4f6fb;
+    }
+    .hero {
+      padding: 40px 0;
+    }
+    .hero-title {
+      font-size: 2.4rem;
+      font-weight: 700;
+    }
+    .hero-subtitle {
+      font-size: 1.1rem;
+      color: #555;
+    }
+    .category-pill {
+      margin: 4px;
+    }
+    .product-card img {
+      max-height: 180px;
+      object-fit: cover;
+    }
+    footer {
+      margin-top: 40px;
+      padding: 20px 0;
+      color: #777;
+      text-align: center;
+      font-size: 0.85rem;
+    }
+  </style>
 </head>
 <body>
-<div class="ui container" style="margin-top: 30px;">
+<div class="ui container" style="margin-top: 20px;">
 
   <!-- NAVBAR -->
-  <div class="ui menu">
-    <a href="/" class="header item">🛒 Pavana Store</a>
+      <!-- NAVBAR -->
+  <div class="ui secondary menu">
+    <a href="/" class="header item">
+      🛒 <strong>Pavana Store</strong>
+    </a>
+
     <a href="/cart" class="item">Cart</a>
     <a href="/wishlist" class="item">Wishlist</a>
+
     <div class="right menu">
-      <a href="/admin/dashboard" class="item">Admin Dashboard</a>
-      <a href="/admin/login" class="item">Admin Login</a>
+      {% if session.get("user_email") %}
+        <a href="/my_orders" class="item">My Orders</a>
+        <div class="item">
+          <span style="font-size: 0.9rem; color:#777;">
+            Hi, <b>{{ session.get("user_name", "Customer") }}</b>
+          </span>
+        </div>
+        <a href="/logout" class="item">Logout</a>
+        <a href="/admin/dashboard" class="item">Admin Dashboard</a>
+      {% else %}
+        <a href="/login" class="item">Login</a>
+        <a href="/signup" class="item">Sign Up</a>
+        <a href="/admin/dashboard" class="item">Admin Dashboard</a>
+      {% endif %}
     </div>
   </div>
 
-  <!-- SEARCH + CATEGORY FILTER -->
-  <form class="ui form" method="get" action="/" style="margin-top: 20px;">
-    <div class="fields">
-      <div class="eight wide field">
-        <input type="text" name="q" placeholder="Search products..." value="{{ q }}">
-      </div>
 
-      <div class="four wide field">
-        <select class="ui dropdown" name="category">
-          <option value="">All Categories</option>
-          {% for cat in categories %}
-          <option value="{{ cat.category }}"
-            {% if selected_category == cat.category %}selected{% endif %}>
-            {{ cat.category }}
-          </option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="four wide field">
-        <button class="ui primary button" type="submit">Search</button>
+  <!-- HERO -->
+  <div class="ui grid hero">
+    <div class="ten wide column">
+      <h1 class="hero-title">Smart shopping experience, built as a real project.</h1>
+      <p class="hero-subtitle">
+        Browse products, add them to your cart, place orders, and manage everything
+        from a powerful admin dashboard – all powered by Flask & SQLite, deployed on Render.
+      </p>
+      <div style="margin-top: 20px;">
+        <a href="#products" class="ui huge primary button">
+          Start Shopping
+        </a>
+        <a href="/admin/dashboard" class="ui large button">
+          View Admin Analytics
+        </a>
       </div>
     </div>
-  </form>
+    <div class="six wide column">
+      <div class="ui raised very padded segment">
+        <h3 class="ui header">Quick Search</h3>
+        <form class="ui form" method="get" action="/">
+          <div class="field">
+            <label>Search products</label>
+            <input type="text" name="q" placeholder="Headphones, phone case..." value="{{ q }}">
+          </div>
+          <div class="field">
+            <label>Category</label>
+            <select class="ui dropdown" name="category">
+              <option value="">All Categories</option>
+              {% for cat in categories %}
+              <option value="{{ cat.category }}"
+                {% if selected_category == cat.category %}selected{% endif %}>
+                {{ cat.category }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <button class="ui primary button" type="submit">Search</button>
+        </form>
+        <div style="margin-top: 10px; font-size: 0.85rem; color:#777;">
+          Try categories like <b>Electronics</b>, <b>Fashion</b>, <b>Home</b>, <b>Accessories</b>.
+        </div>
+      </div>
+    </div>
+  </div>
 
-  <!-- PRODUCTS -->
-  <div class="ui three stackable cards" style="margin-top: 20px;">
+  <!-- CATEGORIES STRIP -->
+  <div class="ui segment">
+    <h4 class="ui header">Popular Categories</h4>
+    <div>
+      <div class="ui tiny basic button category-pill">Electronics</div>
+      <div class="ui tiny basic button category-pill">Accessories</div>
+      <div class="ui tiny basic button category-pill">Home</div>
+      <div class="ui tiny basic button category-pill">Personal Care</div>
+      <div class="ui tiny basic button category-pill">Fashion</div>
+    </div>
+  </div>
+
+  <!-- PRODUCT GRID -->
+  <h3 id="products" class="ui header" style="margin-top: 30px;">
+    Products
+    <div class="sub header">
+      These products are loaded dynamically from the database.
+    </div>
+  </h3>
+
+  {% if products %}
+  <div class="ui three stackable cards">
     {% for p in products %}
-    <div class="card">
+    <div class="card product-card">
       {% if p.image_url %}
       <div class="image">
         <img src="{{ p.image_url }}" alt="{{ p.name }}">
@@ -59,30 +148,29 @@
         {% if p.category %}
         <div class="meta">{{ p.category }}</div>
         {% endif %}
-        <div class="description">{{ p.description }}</div>
+        <div class="description">
+          {{ p.description }}
+        </div>
       </div>
       <div class="extra content">
         <div>
-          <b>${{ "%.2f"|format(p.price) }}</b>
+          <span style="font-weight:bold;">${{ "%.2f"|format(p.price) }}</span>
         </div>
-        <div style="margin-top: 5px;">
+        <div style="margin-top: 6px;">
           {% if p.rating %}
             ⭐ {{ "%.1f"|format(p.rating) }}/5
           {% else %}
-            <span style="color: gray;">No rating yet</span>
+            <span style="color:#999;">Not rated yet</span>
           {% endif %}
         </div>
         <div style="margin-top: 10px;">
-          <a href="/add_to_cart/{{ p.id }}" class="ui tiny primary button">
-            Add to Cart
-          </a>
-          <a href="/add_to_wishlist/{{ p.id }}" class="ui tiny button">
-            ❤️ Wishlist
-          </a>
+          <a href="/add_to_cart/{{ p.id }}" class="ui tiny primary button">Add to Cart</a>
+          <a href="/add_to_wishlist/{{ p.id }}" class="ui tiny button">❤️ Wishlist</a>
         </div>
-        <form action="/rate/{{ p.id }}" method="post" style="margin-top: 10px;">
+        <form action="/rate/{{ p.id }}" method="post" style="margin-top: 8px;">
           <div class="ui mini input">
-            <input type="number" name="rating" min="1" max="5" step="0.5" placeholder="Rate 1-5">
+            <input type="number" name="rating" min="1" max="5" step="0.5"
+                   placeholder="Rate 1–5">
           </div>
           <button class="ui mini yellow button" type="submit">Rate</button>
         </form>
@@ -90,7 +178,37 @@
     </div>
     {% endfor %}
   </div>
+  {% else %}
+  <div class="ui message">
+    No products yet. Login as admin and add some items.
+  </div>
+  {% endif %}
 
+  <!-- INFO STRIP -->
+  <div class="ui three column stackable grid" style="margin-top: 40px;">
+    <div class="column">
+      <div class="ui segment">
+        <h4 class="ui header">Real DB Integration</h4>
+        <p>All products, orders and analytics are stored in a real database – great talking point for interviews.</p>
+      </div>
+    </div>
+    <div class="column">
+      <div class="ui segment">
+        <h4 class="ui header">Admin Dashboard</h4>
+        <p>Track total sales, orders and category-wise performance using your custom analytics page.</p>
+      </div>
+    </div>
+    <div class="column">
+      <div class="ui segment">
+        <h4 class="ui header">Deployed on Render</h4>
+        <p>Full Python backend deployed to the cloud – not just front-end templates.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    © 2025 Pavana Store · Built by Pavana Sai Duddukuri · Flask + Semantic UI · Deployed on Render
+  </footer>
 </div>
 </body>
 </html>
