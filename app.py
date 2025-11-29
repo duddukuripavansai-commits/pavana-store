@@ -1,8 +1,10 @@
 from flask import (
     Flask, render_template, request,
-    redirect, url_for, session
+    redirect, url_for, session, flash
 )
+from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
+import os
 from datetime import datetime
 
 app = Flask(__name__, template_folder="views")
@@ -21,8 +23,10 @@ def get_conn():
 
 
 def init_db():
-    """Ensure products table exists (columns were added via ALTER TABLE)."""
+    """Create tables if they do not exist."""
     conn = get_conn()
+
+    # Products table
     conn.execute("""
         CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,6 +38,41 @@ def init_db():
             rating REAL
         );
     """)
+
+    # Users table (for login/signup)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+
+    # Orders table (used in checkout & dashboard)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_name TEXT,
+            email TEXT,
+            address TEXT,
+            total_amount REAL NOT NULL,
+            created_at TEXT
+        );
+    """)
+
+    # Order items table
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS order_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER NOT NULL,
+            product_id INTEGER NOT NULL,
+            quantity INTEGER NOT NULL,
+            price REAL NOT NULL
+        );
+    """)
+
     conn.commit()
     conn.close()
 
@@ -43,6 +82,19 @@ def get_products():
     products = conn.execute("SELECT * FROM products").fetchall()
     conn.close()
     return products
+
+
+def get_current_user():
+    """Return the logged-in user row, or None."""
+    user_email = session.get("user_email")
+    if not user_email:
+        return None
+    conn = get_conn()
+    user = conn.execute(
+        "SELECT * FROM users WHERE email = ?", (user_email,)
+    ).fetchone()
+    conn.close()
+    return user
 
 
 # ---------- HOME (STORE) ----------
@@ -90,6 +142,99 @@ def _find_in_list(lst, product_id):
     return None
 
 
+# ---------- CUSTOMER AUTH ----------
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+    if request.method == "POST":
+        name = request.form.get("name")
+        email = request.form.get("email")
+        password = request.form.get("password")
+        confirm = request.form.get("confirm")
+
+        if not name or not email or not password:
+            flash("All fields are required.", "error")
+            return redirect(url_for("signup"))
+
+        if password != confirm:
+            flash("Passwords do not match.", "error")
+            return redirect(url_for("signup"))
+
+        password_hash = generate_password_hash(password)
+
+        conn = get_conn()
+        try:
+            conn.execute(
+                "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
+                (name, email, password_hash),
+            )
+            conn.commit()
+        except sqlite3.IntegrityError:
+            # UNIQUE(email) violated
+            flash("An account with that email already exists.", "error")
+            conn.close()
+            return redirect(url_for("signup"))
+
+        conn.close()
+
+        flash("Account created successfully. Please log in.", "success")
+        return redirect(url_for("login_user"))
+
+    return render_template("signup.html")
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login_user():
+    if request.method == "POST":
+        email = request.form.get("email")
+        password = request.form.get("password")
+
+        conn = get_conn()
+        user = conn.execute(
+            "SELECT * FROM users WHERE email = ?", (email,)
+        ).fetchone()
+        conn.close()
+
+        if user is None or not check_password_hash(user["password_hash"], password):
+            flash("Invalid email or password.", "error")
+            return redirect(url_for("login_user"))
+
+        # Save user in session
+        session["user_email"] = user["email"]
+        session["user_name"] = user["name"]
+
+        flash("Logged in successfully.", "success")
+        return redirect(url_for("home"))  # or url_for("my_orders")
+
+    return render_template("login.html")
+
+
+@app.route("/my_orders")
+def my_orders():
+    if "user_email" not in session:
+        flash("Please log in to view your orders.", "error")
+        return redirect(url_for("login_user"))
+
+    user_email = session["user_email"]
+
+    conn = get_conn()
+    orders = conn.execute(
+        "SELECT * FROM orders WHERE email = ? ORDER BY created_at DESC",
+        (user_email,),
+    ).fetchall()
+    conn.close()
+
+    return render_template("my_orders.html", orders=orders)
+
+
+@app.route("/logout")
+def logout_user():
+    session.pop("user_email", None)
+    session.pop("user_name", None)
+    flash("You have been logged out.", "success")
+    return redirect(url_for("home"))
+
+
+# ---------- CART ----------
 @app.route("/cart")
 def cart():
     cart_items = session.get("cart", [])
@@ -243,6 +388,8 @@ def rate_product(product_id):
 # ---------- ADMIN LOGIN / LOGOUT ----------
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
+    error = None
+
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
@@ -251,9 +398,9 @@ def admin_login():
             session["is_admin"] = True
             return redirect(url_for("admin_dashboard"))
         else:
-            return render_template("login.html", error="Invalid username or password")
+            error = "Invalid username or password"
 
-    return render_template("login.html")
+    return render_template("admin_login.html", error=error)
 
 
 @app.route("/admin/logout")
