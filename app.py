@@ -7,12 +7,16 @@ import sqlite3
 import os
 from datetime import datetime
 
+# Base directory of this file (works on Render + local)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_NAME = os.path.join(BASE_DIR, "database.db")
+
 app = Flask(__name__, template_folder="views")
 app.secret_key = "pavana-super-secret-key"   # change if you want
-DB_NAME = "database.db"
 
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "admin123"
+
 
 
 # ---------- DB HELPERS ----------
@@ -20,6 +24,7 @@ def get_conn():
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     return conn
+
 
 
 def init_db():
