@@ -7,7 +7,7 @@ import sqlite3
 import os
 from datetime import datetime
 
-# Base directory of this file (works on Render + local)
+# Make DB path safe for both local + Render
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_NAME = os.path.join(BASE_DIR, "database.db")
 
@@ -16,6 +16,7 @@ app.secret_key = "pavana-super-secret-key"   # change if you want
 
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "admin123"
+
 
 
 
@@ -190,27 +191,60 @@ def signup():
 @app.route("/login", methods=["GET", "POST"])
 def login_user():
     if request.method == "POST":
-        email = request.form.get("email")
-        password = request.form.get("password")
+        email = (request.form.get("email") or "").strip().lower()
+        password = request.form.get("password") or ""
 
-        conn = get_conn()
-        user = conn.execute(
-            "SELECT * FROM users WHERE email = ?", (email,)
-        ).fetchone()
-        conn.close()
+        if not email or not password:
+            flash("Email and password are required.", "error")
+            return redirect(url_for("login_user"))
 
-        if user is None or not check_password_hash(user["password_hash"], password):
+        # Try to read user from DB safely
+        try:
+            conn = get_conn()
+            user = conn.execute(
+                "SELECT name, email, password_hash FROM users WHERE lower(email) = ?",
+                (email,)
+            ).fetchone()
+            conn.close()
+        except sqlite3.OperationalError:
+            # Table doesn't exist or DB not initialized
+            init_db()
+            flash("Login system was just initialized. Please sign up first.", "error")
+            return redirect(url_for("signup"))
+
+        if user is None:
             flash("Invalid email or password.", "error")
             return redirect(url_for("login_user"))
 
-        # Save user in session
+        # Extra safety if password_hash column or value is bad
+        try:
+            stored_hash = user["password_hash"]
+        except Exception:
+            flash("Account data is invalid. Please sign up again.", "error")
+            return redirect(url_for("signup"))
+
+        if not stored_hash:
+            flash("Account password is missing. Please sign up again.", "error")
+            return redirect(url_for("signup"))
+
+        try:
+            if not check_password_hash(stored_hash, password):
+                flash("Invalid email or password.", "error")
+                return redirect(url_for("login_user"))
+        except Exception:
+            flash("Error verifying your password. Please try again or sign up again.", "error")
+            return redirect(url_for("login_user"))
+
+        # SUCCESS: Save user in session
         session["user_email"] = user["email"]
         session["user_name"] = user["name"]
 
         flash("Logged in successfully.", "success")
-        return redirect(url_for("home"))  # or url_for("my_orders")
+        return redirect(url_for("home"))
 
+    # GET request → show login page
     return render_template("login.html")
+
 
 
 @app.route("/my_orders")
