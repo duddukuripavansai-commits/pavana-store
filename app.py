@@ -21,11 +21,11 @@ def get_conn():
     conn.row_factory = sqlite3.Row
     return conn
 
-
 def init_db():
+    """Create all needed tables if they don't exist."""
     conn = get_conn()
 
-    # Products
+    # Products table
     conn.execute("""
         CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,7 +38,7 @@ def init_db():
         );
     """)
 
-    # Users
+    # Users table (for login/signup)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,7 +50,7 @@ def init_db():
         );
     """)
 
-    # Orders
+    # Orders table
     conn.execute("""
         CREATE TABLE IF NOT EXISTS orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,7 +62,7 @@ def init_db():
         );
     """)
 
-    # Order items
+    # Order items table
     conn.execute("""
         CREATE TABLE IF NOT EXISTS order_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -70,14 +70,13 @@ def init_db():
             product_id INTEGER NOT NULL,
             quantity INTEGER NOT NULL,
             price REAL NOT NULL,
-            FOREIGN KEY(order_id) REFERENCES orders(id),
-            FOREIGN KEY(product_id) REFERENCES products(id)
+            FOREIGN KEY (order_id) REFERENCES orders(id),
+            FOREIGN KEY (product_id) REFERENCES products(id)
         );
     """)
 
     conn.commit()
     conn.close()
-
 
 def get_products():
     conn = get_conn()
@@ -566,7 +565,11 @@ def delete_product(product_id):
     return redirect(url_for("admin_products"))
 
 
-# ---------- MAIN ----------
-if __name__ == "__main__":
+# ---------- MAIN ---------
+
+# Always initialize DB when the app module is imported
+with app.app_context():
     init_db()
-    app.run(debug=False)
+
+if __name__ == "__main__":
+    app.run(debug=True)
