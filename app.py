@@ -4,20 +4,15 @@ from flask import (
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
-import os
 from datetime import datetime
 
-# Make DB path safe for both local + Render
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_NAME = os.path.join(BASE_DIR, "database.db")
-
+# Flask app, templates in "views"
 app = Flask(__name__, template_folder="views")
-app.secret_key = "pavana-super-secret-key"   # change if you want
+app.secret_key = "pavana-super-secret-key"
+DB_NAME = "database.db"
 
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "admin123"
-
-
 
 
 # ---------- DB HELPERS ----------
@@ -27,12 +22,10 @@ def get_conn():
     return conn
 
 
-
 def init_db():
-    """Create tables if they do not exist."""
     conn = get_conn()
 
-    # Products table
+    # Products
     conn.execute("""
         CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,37 +38,40 @@ def init_db():
         );
     """)
 
-    # Users table (for login/signup)
+    # Users
     conn.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             email TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
+            address TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
 
-    # Orders table (used in checkout & dashboard)
+    # Orders
     conn.execute("""
         CREATE TABLE IF NOT EXISTS orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_name TEXT,
-            email TEXT,
+            customer_name TEXT NOT NULL,
+            email TEXT NOT NULL,
             address TEXT,
             total_amount REAL NOT NULL,
-            created_at TEXT
+            created_at TEXT NOT NULL
         );
     """)
 
-    # Order items table
+    # Order items
     conn.execute("""
         CREATE TABLE IF NOT EXISTS order_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             order_id INTEGER NOT NULL,
             product_id INTEGER NOT NULL,
             quantity INTEGER NOT NULL,
-            price REAL NOT NULL
+            price REAL NOT NULL,
+            FOREIGN KEY(order_id) REFERENCES orders(id),
+            FOREIGN KEY(product_id) REFERENCES products(id)
         );
     """)
 
@@ -91,16 +87,23 @@ def get_products():
 
 
 def get_current_user():
-    """Return the logged-in user row, or None."""
     user_email = session.get("user_email")
     if not user_email:
         return None
     conn = get_conn()
     user = conn.execute(
-        "SELECT * FROM users WHERE email = ?", (user_email,)
+        "SELECT * FROM users WHERE email = ?",
+        (user_email,)
     ).fetchone()
     conn.close()
     return user
+
+
+def _find_in_list(lst, product_id):
+    for idx, item in enumerate(lst):
+        if int(item["id"]) == int(product_id):
+            return idx
+    return None
 
 
 # ---------- HOME (STORE) ----------
@@ -111,7 +114,6 @@ def home():
 
     conn = get_conn()
 
-    # dynamic categories
     categories = conn.execute(
         "SELECT DISTINCT category FROM products "
         "WHERE category IS NOT NULL AND TRIM(category) != ''"
@@ -140,15 +142,7 @@ def home():
     )
 
 
-# ---------- CART (SESSION) ----------
-def _find_in_list(lst, product_id):
-    for idx, item in enumerate(lst):
-        if int(item["id"]) == int(product_id):
-            return idx
-    return None
-
-
-# ---------- CUSTOMER AUTH ----------
+# ---------- SIGNUP / LOGIN / LOGOUT ----------
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "POST":
@@ -175,13 +169,11 @@ def signup():
             )
             conn.commit()
         except sqlite3.IntegrityError:
-            # UNIQUE(email) violated
             flash("An account with that email already exists.", "error")
             conn.close()
             return redirect(url_for("signup"))
 
         conn.close()
-
         flash("Account created successfully. Please log in.", "success")
         return redirect(url_for("login_user"))
 
@@ -191,62 +183,38 @@ def signup():
 @app.route("/login", methods=["GET", "POST"])
 def login_user():
     if request.method == "POST":
-        email = (request.form.get("email") or "").strip().lower()
-        password = request.form.get("password") or ""
+        email = request.form.get("email")
+        password = request.form.get("password")
 
-        if not email or not password:
-            flash("Email and password are required.", "error")
-            return redirect(url_for("login_user"))
+        conn = get_conn()
+        user = conn.execute(
+            "SELECT * FROM users WHERE email = ?",
+            (email,)
+        ).fetchone()
+        conn.close()
 
-        # Try to read user from DB safely
-        try:
-            conn = get_conn()
-            user = conn.execute(
-                "SELECT name, email, password_hash FROM users WHERE lower(email) = ?",
-                (email,)
-            ).fetchone()
-            conn.close()
-        except sqlite3.OperationalError:
-            # Table doesn't exist or DB not initialized
-            init_db()
-            flash("Login system was just initialized. Please sign up first.", "error")
-            return redirect(url_for("signup"))
-
-        if user is None:
+        if user is None or not check_password_hash(user["password_hash"], password):
             flash("Invalid email or password.", "error")
             return redirect(url_for("login_user"))
 
-        # Extra safety if password_hash column or value is bad
-        try:
-            stored_hash = user["password_hash"]
-        except Exception:
-            flash("Account data is invalid. Please sign up again.", "error")
-            return redirect(url_for("signup"))
-
-        if not stored_hash:
-            flash("Account password is missing. Please sign up again.", "error")
-            return redirect(url_for("signup"))
-
-        try:
-            if not check_password_hash(stored_hash, password):
-                flash("Invalid email or password.", "error")
-                return redirect(url_for("login_user"))
-        except Exception:
-            flash("Error verifying your password. Please try again or sign up again.", "error")
-            return redirect(url_for("login_user"))
-
-        # SUCCESS: Save user in session
         session["user_email"] = user["email"]
         session["user_name"] = user["name"]
 
         flash("Logged in successfully.", "success")
         return redirect(url_for("home"))
 
-    # GET request → show login page
     return render_template("login.html")
 
 
+@app.route("/logout")
+def logout_user():
+    session.pop("user_email", None)
+    session.pop("user_name", None)
+    flash("You have been logged out.", "success")
+    return redirect(url_for("home"))
 
+
+# ---------- MY ORDERS ----------
 @app.route("/my_orders")
 def my_orders():
     if "user_email" not in session:
@@ -265,19 +233,15 @@ def my_orders():
     return render_template("my_orders.html", orders=orders)
 
 
-@app.route("/logout")
-def logout_user():
-    session.pop("user_email", None)
-    session.pop("user_name", None)
-    flash("You have been logged out.", "success")
-    return redirect(url_for("home"))
-
-
 # ---------- CART ----------
 @app.route("/cart")
 def cart():
     cart_items = session.get("cart", [])
-    total = sum(float(item["price"]) * int(item["quantity"]) for item in cart_items) if cart_items else 0
+    total = sum(
+        float(item["price"]) * int(item["quantity"])
+        for item in cart_items
+    ) if cart_items else 0.0
+
     return render_template("cart.html", cart_items=cart_items, total=total)
 
 
@@ -304,7 +268,7 @@ def add_to_cart(product_id):
                 "quantity": 1
             })
         else:
-            cart[idx]["quantity"] += 1
+            cart[idx]["quantity"] = int(cart[idx]["quantity"]) + 1
 
         session["cart"] = cart
 
@@ -320,8 +284,30 @@ def remove_from_cart(product_id):
     session["cart"] = cart
     return redirect(url_for("cart"))
 
+@app.route("/cart/increase/<int:product_id>")
+def cart_increase(product_id):
+    cart = session.get("cart", [])
+    idx = _find_in_list(cart, product_id)
+    if idx is not None:
+        cart[idx]["quantity"] += 1
+    session["cart"] = cart
+    return redirect(url_for("cart"))
 
-# ---------- WISHLIST (SESSION) ----------
+@app.route("/cart/decrease/<int:product_id>")
+def cart_decrease(product_id):
+    cart = session.get("cart", [])
+    idx = _find_in_list(cart, product_id)
+    if idx is not None:
+        if cart[idx]["quantity"] > 1:
+            cart[idx]["quantity"] -= 1
+        else:
+            del cart[idx]
+    session["cart"] = cart
+    return redirect(url_for("cart"))
+
+
+
+# ---------- WISHLIST ----------
 @app.route("/wishlist")
 def wishlist():
     wishlist_items = session.get("wishlist", [])
@@ -339,7 +325,6 @@ def add_to_wishlist(product_id):
 
     if product:
         wishlist = session.get("wishlist", [])
-        # only add if not already in wishlist
         if _find_in_list(wishlist, product_id) is None:
             wishlist.append({
                 "id": product["id"],
@@ -359,10 +344,12 @@ def add_to_wishlist(product_id):
 def checkout():
     cart_items = session.get("cart", [])
     if not cart_items:
-        # No items, go back to store
         return redirect(url_for("home"))
 
-    total = sum(float(item["price"]) * int(item["quantity"]) for item in cart_items)
+    total = sum(
+        float(item["price"]) * int(item["quantity"])
+        for item in cart_items
+    )
 
     if request.method == "POST":
         name = request.form.get("name")
@@ -370,8 +357,6 @@ def checkout():
         address = request.form.get("address")
 
         conn = get_conn()
-
-        # create order
         cur = conn.cursor()
         cur.execute(
             "INSERT INTO orders (customer_name, email, address, total_amount, created_at) "
@@ -380,7 +365,6 @@ def checkout():
         )
         order_id = cur.lastrowid
 
-        # create order_items
         for item in cart_items:
             cur.execute(
                 "INSERT INTO order_items (order_id, product_id, quantity, price) "
@@ -391,7 +375,6 @@ def checkout():
         conn.commit()
         conn.close()
 
-        # clear cart
         session["cart"] = []
 
         return redirect(url_for("order_success", order_id=order_id))
@@ -404,7 +387,7 @@ def order_success(order_id):
     return render_template("order_success.html", order_id=order_id)
 
 
-# ---------- RATINGS (simple) ----------
+# ---------- RATINGS ----------
 @app.route("/rate/<int:product_id>", methods=["POST"])
 def rate_product(product_id):
     rating = request.form.get("rating")
@@ -414,7 +397,6 @@ def rate_product(product_id):
         return redirect(url_for("home"))
 
     conn = get_conn()
-    # For simplicity: overwrite rating (no averaging)
     conn.execute(
         "UPDATE products SET rating = ? WHERE id = ?",
         (rating, product_id)
@@ -424,11 +406,14 @@ def rate_product(product_id):
     return redirect(url_for("home"))
 
 
-# ---------- ADMIN LOGIN / LOGOUT ----------
+# ---------- ADMIN ----------
+def admin_required():
+    return session.get("is_admin") is True
+
+
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     error = None
-
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
@@ -448,11 +433,6 @@ def admin_logout():
     return redirect(url_for("home"))
 
 
-def admin_required():
-    return session.get("is_admin") is True
-
-
-# ---------- ADMIN DASHBOARD (ANALYTICS) ----------
 @app.route("/admin/dashboard")
 def admin_dashboard():
     if not admin_required():
@@ -478,7 +458,6 @@ def admin_dashboard():
     ).fetchone()
     total_revenue = total_revenue_row["s"] if total_revenue_row["s"] is not None else 0
 
-    # sales by category (for chart)
     sales_by_cat = conn.execute("""
         SELECT p.category AS category,
                SUM(oi.quantity * oi.price) AS total_sales
@@ -489,7 +468,6 @@ def admin_dashboard():
 
     conn.close()
 
-    # Prepare data for chart
     chart_labels = [row["category"] or "Uncategorized" for row in sales_by_cat]
     chart_values = [row["total_sales"] for row in sales_by_cat]
 
@@ -504,7 +482,6 @@ def admin_dashboard():
     )
 
 
-# ---------- ADMIN PRODUCT LIST ----------
 @app.route("/admin/products")
 def admin_products():
     if not admin_required():
@@ -514,7 +491,6 @@ def admin_products():
     return render_template("products.html", products=products)
 
 
-# ---------- ADD PRODUCT ----------
 @app.route("/admin/product/add", methods=["GET", "POST"])
 def add_product():
     if not admin_required():
@@ -541,7 +517,6 @@ def add_product():
     return render_template("product.html")
 
 
-# ---------- EDIT PRODUCT ----------
 @app.route("/admin/product/edit/<int:product_id>", methods=["GET", "POST"])
 def edit_product(product_id):
     if not admin_required():
@@ -578,7 +553,6 @@ def edit_product(product_id):
     return render_template("edit_product.html", product=product)
 
 
-# ---------- DELETE PRODUCT ----------
 @app.route("/admin/product/delete/<int:product_id>")
 def delete_product(product_id):
     if not admin_required():
@@ -595,4 +569,4 @@ def delete_product(product_id):
 # ---------- MAIN ----------
 if __name__ == "__main__":
     init_db()
-    app.run(debug=True)
+    app.run(debug=False)

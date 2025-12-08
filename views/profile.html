@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>My Profile</title>
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/semantic-ui@2.5.0/dist/semantic.min.css" />
+</head>
+<body>
+<div class="ui container" style="margin-top:40px; max-width:900px;">
+
+  <h2 class="ui header">My Profile</h2>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="ui info message">
+        <ul class="list">
+          {% for category, msg in messages %}
+            <li>{{ msg }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="ui grid">
+    <div class="ten wide column">
+      <h3 class="ui dividing header">Personal Information</h3>
+
+      <form class="ui form" method="post" action="/profile">
+
+        <div class="field">
+          <label>Name</label>
+          <input type="text" name="name" value="{{ user.name }}" required>
+        </div>
+
+        <div class="field">
+          <label>Email (cannot change)</label>
+          <input type="email" value="{{ user.email }}" disabled>
+        </div>
+
+        <div class="field">
+          <label>Address</label>
+          <textarea name="address" rows="3">{{ user.address or "" }}</textarea>
+        </div>
+
+        <button class="ui primary button">Save</button>
+      </form>
+    </div>
+
+    <div class="six wide column">
+      <h3 class="ui dividing header">Change Password</h3>
+
+      <form class="ui form" method="post" action="/profile/password">
+
+        <div class="field">
+          <label>Current Password</label>
+          <input type="password" name="current_password" required>
+        </div>
+
+        <div class="field">
+          <label>New Password</label>
+          <input type="password" name="new_password" required>
+        </div>
+
+        <div class="field">
+          <label>Confirm New Password</label>
+          <input type="password" name="confirm_password" required>
+        </div>
+
+        <button class="ui orange button">Update Password</button>
+      </form>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
+ 

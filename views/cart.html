@@ -2,51 +2,77 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>Your Cart</title>
+  <title>Your Cart – Pavana Store</title>
   <link rel="stylesheet"
         href="https://cdn.jsdelivr.net/npm/semantic-ui@2.5.0/dist/semantic.min.css" />
 </head>
 <body>
-<div class="ui container" style="margin-top: 30px;">
+<div class="ui container" style="margin-top: 20px;">
 
-  <h2 class="ui header">🛒 Your Cart</h2>
-  <a href="/" class="ui button">Back to Store</a>
+  <div class="ui secondary menu">
+    <a href="/" class="header item">🛒 Pavana Store</a>
+    <a href="/cart" class="item active">Cart</a>
+    <a href="/wishlist" class="item">Wishlist</a>
 
-  <table class="ui celled table" style="margin-top: 20px;">
-    <thead>
-      <tr>
-        <th>Product</th>
-        <th>Description</th>
-        <th>Category</th>
-        <th>Price</th>
-        <th>Quantity</th>
-        <th>Subtotal</th>
-        <th>Remove</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for item in cart_items %}
-      <tr>
-        <td>{{ item.name }}</td>
-        <td>{{ item.description }}</td>
-        <td>{{ item.category }}</td>
-        <td>${{ "%.2f"|format(item.price) }}</td>
-        <td>{{ item.quantity }}</td>
-        <td>${{ "%.2f"|format(item.price * item.quantity) }}</td>
-        <td>
-          <a href="/remove_from_cart/{{ item.id }}" class="ui tiny red button">
-            Remove
-          </a>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+    <div class="right menu">
+      {% if session.get("user_email") %}
+        <a href="/my_orders" class="item">My Orders</a>
+        <div class="item">Hi, <b>{{ session.get("user_name", "Customer") }}</b></div>
+        <a href="/logout" class="item">Logout</a>
+      {% else %}
+        <a href="/login" class="item">Login</a>
+        <a href="/signup" class="item">Sign Up</a>
+      {% endif %}
+    </div>
+  </div>
 
-  <h3 class="ui header">Total: ${{ "%.2f"|format(total) }}</h3>
+  <h2 class="ui header">Your Shopping Cart</h2>
 
   {% if cart_items %}
-  <a href="/checkout" class="ui green button">Proceed to Checkout</a>
+    <table class="ui celled table">
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Price</th>
+          <th style="width: 200px;">Quantity</th>
+          <th>Item Total</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in cart_items %}
+        <tr>
+          <td>{{ item.name }}</td>
+          <td>${{ "%.2f"|format(item.price) }}</td>
+          <td>
+            <div class="ui mini buttons">
+              <a href="{{ url_for('cart_decrease', product_id=item.id) }}" class="ui button">-</a>
+              <div class="ui button disabled">{{ item.quantity }}</div>
+              <a href="{{ url_for('cart_increase', product_id=item.id) }}" class="ui button">+</a>
+            </div>
+          </td>
+          <td>${{ "%.2f"|format(item.price * item.quantity) }}</td>
+          <td>
+            <a href="{{ url_for('remove_from_cart', product_id=item.id) }}"
+               class="ui red button mini">Remove</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+
+      <tfoot>
+        <tr>
+          <th colspan="3" style="text-align: right;">Grand Total:</th>
+          <th colspan="2"><b>${{ "%.2f"|format(total) }}</b></th>
+        </tr>
+      </tfoot>
+    </table>
+
+    <a href="/" class="ui button">⬅ Continue Shopping</a>
+    <a href="/checkout" class="ui primary button">Checkout</a>
+
+  {% else %}
+    <div class="ui message">Your cart is empty.</div>
   {% endif %}
 
 </div>
